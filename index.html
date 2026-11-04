@@ -403,6 +403,12 @@ load(saved||{});
   src="https://luischarlii.github.io/LC-Ads/lc-ads.js"
   data-app="all">
 </script> 
+ <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+ 
 </body>
   <center><footer>LC Cotizador · Luis Charlii</footer></center>
 </html>
