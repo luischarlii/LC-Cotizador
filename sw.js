@@ -1,8 +1,17 @@
 const CACHE = 'lc-cotizador-v1';
-const ARCHIVOS = ['./', './index.html'];
+const LOCAL = ['./', './index.html'];
+const EXTERNOS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)));
+  e.waitUntil(
+    caches.open(CACHE).then(async c => {
+      await c.addAll(LOCAL);
+      // Cada recurso externo por separado: si uno falla, no se cae la instalación
+      await Promise.all(EXTERNOS.map(u => c.add(u).catch(() => {})));
+    })
+  );
   self.skipWaiting();
 });
 
@@ -20,10 +29,12 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        const copia = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copia));
+        if (res && (res.ok || res.type === 'opaque')) {
+          const copia = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copia));
+        }
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });
