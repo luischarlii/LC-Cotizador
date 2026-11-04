@@ -314,6 +314,11 @@ function load(d){
   $('cli').value=d.cliente||'';$('fec').value=d.fecha||today();$('trab').value=d.trabajo||'';$('mo').value=d.manoDeObra||'';
   $('rows').innerHTML='';(d.materiales&&d.materiales.length?d.materiales:[null]).forEach(addRow);upd();
 }
+async function saveAs(name,data,mime){
+  var dl=null;try{dl=await claude.use('downloads')}catch(e){}
+  if(dl){await dl.save({filename:name,data:data});return}
+  var u=URL.createObjectURL(new Blob([data],{type:mime})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)
+}
 $('add').onclick=function(){addRow();upd();var i=$('rows').lastChild.querySelector('.n');i.focus()};
 document.addEventListener('input',upd);
 $('wa').onclick=function(e){if(!data().materiales.length){e.preventDefault();say('Agrega al menos un material antes de enviar.')}};
@@ -323,15 +328,11 @@ $('copy').onclick=function(){
 };
 $('save').onclick=async function(){
   var d=data();if(!d.cliente&&!d.materiales.length){say('Escribe el cliente o agrega materiales para guardar.');return}
-  var dl=null;try{dl=await claude.use('downloads')}catch(e){}
-  if(!dl){say('Guardar archivo no está disponible aquí. Usa "Copiar texto" para conservar la cotización.');return}
   var name='cotizacion-'+(d.cliente||'cliente').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+(d.fecha||today())+'.json';
-  try{await dl.save({filename:name,data:JSON.stringify(d,null,2)});say('Archivo guardado.')}catch(e){say(e&&e.code==='declined'?'Guardado cancelado.':'No se pudo guardar el archivo.')}
+  try{await saveAs(name,JSON.stringify(d,null,2),'application/json');say('Archivo guardado.')}catch(e){say(e&&e.code==='declined'?'Guardado cancelado.':'No se pudo guardar el archivo.')}
 };
 $('pdf').onclick=async function(){
   var d=data();if(!d.materiales.length){say('Agrega al menos un material para crear el PDF.');return}
-  var dl=null;try{dl=await claude.use('downloads')}catch(e){}
-  if(!dl){say('Crear PDF no está disponible aquí.');return}
   if(!window.jspdf){say('No cargó el creador de PDF. Revisa tu conexión.');return}
   var doc=new window.jspdf.jsPDF({unit:'mm',format:'letter'}),t=totals(d),y=20,tx=function(s,x,yy,o){doc.text(String(s),x,yy,o)};
   doc.setFillColor(242,183,5);doc.rect(0,0,216,6,'F');doc.setTextColor(20,33,61);
@@ -358,7 +359,7 @@ $('pdf').onclick=async function(){
   if(d.manoDeObra){tx('Mano de obra',150,y+2,{align:'right'});tx(money(t.mo),200,y+2,{align:'right'});y+=7}
   doc.setFont('helvetica','bold');doc.setFontSize(15);tx('TOTAL',150,y+4,{align:'right'});tx(money(t.t),200,y+4,{align:'right'});
   var nm='cotizacion-'+(d.cliente||'cliente').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-'+(d.fecha||today())+'.pdf';
-  try{await dl.save({filename:nm,data:doc.output('blob')});say('PDF guardado.')}catch(e){say(e&&e.code==='declined'?'Guardado cancelado.':'No se pudo crear el PDF.')}
+  try{await saveAs(nm,doc.output('blob'),'application/pdf');say('PDF guardado.')}catch(e){say(e&&e.code==='declined'?'Guardado cancelado.':'No se pudo crear el PDF.')}
 };
 $('openb').onclick=function(){$('file').click()};
 $('file').onchange=function(){
